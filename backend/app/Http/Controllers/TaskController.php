@@ -21,6 +21,7 @@ class TaskController extends Controller
     {
         $this->authorizeProject($request, $workspace, $project);
         $data = $request->validate(['title' => ['required', 'string', 'max:180'], 'description' => ['nullable', 'string'], 'status' => ['nullable', 'in:backlog,in-progress,review,done'], 'priority' => ['nullable', 'in:low,medium,high'], 'assignee_id' => ['nullable', 'exists:users,id'], 'due_date' => ['nullable', 'date']]);
+        $this->authorizeAssignee($workspace, $data['assignee_id'] ?? null);
         $task = $project->tasks()->create([...$data, 'creator_id' => $request->user()->id, 'status' => $data['status'] ?? 'backlog', 'priority' => $data['priority'] ?? 'medium', 'position' => $project->tasks()->max('position') + 1]);
         $this->log($workspace, $request, $task, 'task.created');
         return response()->json($task->load('assignee'), 201);
@@ -30,6 +31,7 @@ class TaskController extends Controller
     {
         $this->authorizeTask($request, $workspace, $project, $task);
         $data = $request->validate(['title' => ['sometimes', 'string', 'max:180'], 'description' => ['nullable', 'string'], 'status' => ['sometimes', 'in:backlog,in-progress,review,done'], 'priority' => ['sometimes', 'in:low,medium,high'], 'assignee_id' => ['nullable', 'exists:users,id'], 'due_date' => ['nullable', 'date'], 'position' => ['sometimes', 'integer', 'min:0']]);
+        if (array_key_exists('assignee_id', $data)) $this->authorizeAssignee($workspace, $data['assignee_id']);
         $oldStatus = $task->status;
         $task->update($data);
         $this->log($workspace, $request, $task, $oldStatus !== $task->status ? 'task.status_changed' : 'task.updated', ['from' => $oldStatus, 'to' => $task->status]);
@@ -54,6 +56,11 @@ class TaskController extends Controller
     {
         $this->authorizeProject($request, $workspace, $project);
         abort_unless($task->project_id === $project->id, 404);
+    }
+
+    private function authorizeAssignee(Workspace $workspace, ?int $userId): void
+    {
+        if ($userId !== null) abort_unless($workspace->members()->whereKey($userId)->exists(), 422, 'Assignee harus menjadi anggota workspace.');
     }
 
     private function log(Workspace $workspace, Request $request, ?Task $task, string $action, array $metadata = []): void
