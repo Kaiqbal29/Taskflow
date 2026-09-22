@@ -37,8 +37,38 @@ class WorkspaceController extends Controller
         $data = $request->validate(['email' => ['required', 'email', 'exists:users,email'], 'role' => ['nullable', 'in:admin,member']]);
         $member = User::where('email', $data['email'])->firstOrFail();
         $workspace->members()->syncWithoutDetaching([$member->id => ['role' => $data['role'] ?? 'member']]);
-        ActivityLog::create(['workspace_id' => $workspace->id, 'user_id' => $request->user()->id, 'action' => 'member.added', 'metadata' => ['member_id' => $member->id]]);
+        ActivityLog::create(['workspace_id' => $workspace->id, 'user_id' => $request->user()->id, 'action' => 'member.added', 'metadata' => ['member_id' => $member->id, 'role' => $data['role'] ?? 'member']]);
         return response()->json($workspace->load('members'));
+    }
+
+    public function updateMemberRole(Request $request, Workspace $workspace, User $member): JsonResponse
+    {
+        $this->authorizeMember($request, $workspace);
+        abort_unless($workspace->owner_id === $request->user()->id, 403, 'Hanya owner yang dapat mengubah role anggota.');
+        abort_if($member->id === $workspace->owner_id, 422, 'Role owner tidak dapat diubah.');
+        abort_unless($workspace->members()->whereKey($member->id)->exists(), 404, 'Anggota tidak ditemukan di workspace ini.');
+        $data = $request->validate(['role' => ['required', 'in:admin,member']]);
+        $workspace->members()->updateExistingPivot($member->id, ['role' => $data['role']]);
+        ActivityLog::create(['workspace_id' => $workspace->id, 'user_id' => $request->user()->id, 'action' => 'member.role_updated', 'metadata' => ['member_id' => $member->id, 'role' => $data['role']]]);
+        return response()->json($workspace->load('members'));
+    }
+
+    public function update(Request $request, Workspace $workspace): JsonResponse
+    {
+        $this->authorizeMember($request, $workspace);
+        abort_unless($workspace->owner_id === $request->user()->id, 403, 'Hanya owner yang dapat mengubah workspace.');
+        $data = $request->validate(['name' => ['required', 'string', 'max:100']]);
+        $workspace->update(['name' => $data['name'], 'slug' => Str::slug($data['name']) . '-' . Str::lower(Str::random(5))]);
+        ActivityLog::create(['workspace_id' => $workspace->id, 'user_id' => $request->user()->id, 'action' => 'workspace.updated', 'metadata' => ['name' => $workspace->name]]);
+        return response()->json($workspace->fresh()->load('members'));
+    }
+
+    public function destroy(Request $request, Workspace $workspace): JsonResponse
+    {
+        $this->authorizeMember($request, $workspace);
+        abort_unless($workspace->owner_id === $request->user()->id, 403, 'Hanya owner yang dapat menghapus workspace.');
+        $workspace->delete();
+        return response()->json(['message' => 'Workspace dihapus.']);
     }
 
     public function removeMember(Request $request, Workspace $workspace, User $member): JsonResponse
