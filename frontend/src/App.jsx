@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import AuthScreen from './AuthScreen.jsx'
 import { api } from './lib/api.js'
-import { CommentsPanel, ProjectsView, TeamView } from './CollaborationViews.jsx'
+import { CommentsPanel, ProjectsView, SettingsView, TeamView } from './CollaborationViews.jsx'
 import {
   ArrowDown,
   ArrowUp,
@@ -16,6 +16,7 @@ import {
   FolderKanban,
   LayoutDashboard,
   ListTodo,
+  LogOut,
   Menu,
   MessageSquare,
   MoreHorizontal,
@@ -206,7 +207,7 @@ function ActivityItem({ initials, color, children, time }) {
 }
 
 function App() {
-  const [dark, setDark] = useState(false)
+  const [dark, setDark] = useState(() => localStorage.getItem('taskflow_theme') === 'dark')
   const [session, setSession] = useState(null)
   const [authChecked, setAuthChecked] = useState(() => !localStorage.getItem('taskflow_token'))
   const [apiContext, setApiContext] = useState(null)
@@ -221,6 +222,10 @@ function App() {
   const [selectedTask, setSelectedTask] = useState(null)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [newTask, setNewTask] = useState({ title: '', project: 'Website Redesign', priority: 'Medium', assignee: 'AF', due: 'Sep 30' })
+
+  useEffect(() => {
+    localStorage.setItem('taskflow_theme', dark ? 'dark' : 'light')
+  }, [dark])
 
   useEffect(() => {
     const token = localStorage.getItem('taskflow_token')
@@ -327,6 +332,33 @@ function App() {
     setApiContext((current) => ({ ...current, projects: [...current.projects, { ...created, tasks_count: 0, completed_tasks_count: 0 }] }))
   }
 
+  async function updateProject(projectId, data) {
+    if (!apiContext?.workspace) return
+    if (!session?.token) {
+      setApiContext((current) => ({ ...current, projects: current.projects.map((project) => project.id === projectId ? { ...project, ...data } : project) }))
+      return
+    }
+    const previous = apiContext.projects.find((project) => project.id === projectId)
+    const updated = await api.updateProject(session.token, apiContext.workspace.id, projectId, data)
+    setApiContext((current) => ({ ...current, projects: current.projects.map((project) => project.id === projectId ? updated : project) }))
+    setTasks((current) => current.map((task) => task.project === previous?.name ? { ...task, project: updated.name } : task))
+    if (selectedProject === previous?.name) setSelectedProject(updated.name)
+    setNewTask((current) => current.project === previous?.name ? { ...current, project: updated.name } : current)
+  }
+
+  async function deleteProject(projectId) {
+    if (!apiContext?.workspace) return
+    const deleted = apiContext.projects.find((project) => project.id === projectId)
+    if (!session?.token) {
+      setApiContext((current) => ({ ...current, projects: current.projects.filter((project) => project.id !== projectId) }))
+    } else {
+      await api.deleteProject(session.token, apiContext.workspace.id, projectId)
+      setApiContext((current) => ({ ...current, projects: current.projects.filter((project) => project.id !== projectId) }))
+    }
+    setTasks((current) => current.filter((task) => task.project !== deleted?.name))
+    if (selectedProject === deleted?.name) setSelectedProject('All projects')
+  }
+
   async function inviteMember(email) {
     if (!apiContext?.workspace) return
     if (!session?.token) {
@@ -336,6 +368,26 @@ function App() {
     }
     const updatedWorkspace = await api.addMember(session.token, apiContext.workspace.id, { email, role: 'member' })
     setApiContext((current) => ({ ...current, workspace: updatedWorkspace }))
+  }
+
+  async function removeMember(memberId) {
+    if (!apiContext?.workspace) return
+    if (!session?.token) {
+      setApiContext((current) => ({ ...current, workspace: { ...current.workspace, members: current.workspace.members.filter((member) => member.id !== memberId) } }))
+      return
+    }
+    const updatedWorkspace = await api.removeMember(session.token, apiContext.workspace.id, memberId)
+    setApiContext((current) => ({ ...current, workspace: updatedWorkspace }))
+  }
+
+  async function logout() {
+    try { if (session?.token) await api.logout(session.token) } catch { /* session cleanup still proceeds */ }
+    localStorage.removeItem('taskflow_token')
+    setSession(null)
+    setApiContext(null)
+    setActivity([])
+    setTasks(initialTasks)
+    setAuthChecked(true)
   }
 
   async function addComment(event) {
@@ -373,7 +425,7 @@ function App() {
             <div className="space-y-1">{projectOptions.slice(1).map((project) => <button key={project.name} onClick={() => setSelectedProject(project.name)} className={`flex w-full items-center justify-between rounded-lg px-2 py-2 text-xs transition ${selectedProject === project.name ? 'bg-slate-100 font-semibold text-slate-800 dark:bg-slate-800 dark:text-slate-100' : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}><span className="flex items-center gap-2.5"><span className={`h-2 w-2 rounded-full ${project.color}`} />{project.name}</span><span className="text-[10px] text-slate-400">{project.count}</span></button>)}</div>
           </div>
 
-          <div className="mt-auto space-y-1 px-1"><button className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/60"><Settings size={17} />Settings</button><button className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/60"><CircleHelp size={17} />Help center</button><div className="mt-3 flex items-center gap-3 border-t border-slate-100 px-2 pt-4 dark:border-slate-800"><Avatar initials={initialsFromName(session?.user?.name)} className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-200" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{session?.user?.name ?? 'Kaiqbal'}</p><p className="truncate text-[10px] text-slate-400">Product workspace</p></div><MoreHorizontal size={16} className="text-slate-400" /></div></div>
+          <div className="mt-auto space-y-1 px-1"><button onClick={() => setActiveNav('Settings')} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800/60 ${activeNav === 'Settings' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300' : 'text-slate-500 dark:text-slate-400'}`}><Settings size={17} />Settings</button><button className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm text-slate-500 hover:bg-slate-50 dark:text-slate-400 dark:hover:bg-slate-800/60"><CircleHelp size={17} />Help center</button><div className="mt-3 flex items-center gap-3 border-t border-slate-100 px-2 pt-4 dark:border-slate-800"><Avatar initials={initialsFromName(session?.user?.name)} className="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-200" /><div className="min-w-0 flex-1"><p className="truncate text-xs font-semibold">{session?.user?.name ?? 'Kaiqbal'}</p><p className="truncate text-[10px] text-slate-400">Product workspace</p></div><button aria-label="Sign out" title="Sign out" onClick={logout} className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-indigo-600 dark:hover:bg-slate-800"><LogOut size={15} /></button></div></div>
         </aside>
 
         <div className="lg:pl-64">
@@ -396,7 +448,7 @@ function App() {
                 <aside className="space-y-6"><div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"><div className="mb-5 flex items-center justify-between"><h3 className="text-sm font-bold">Sprint progress</h3><button className="text-slate-400"><MoreHorizontal size={17} /></button></div><div className="flex items-center gap-5"><div className="relative h-24 w-24 shrink-0 rounded-full" style={{ background: `conic-gradient(#6366f1 ${progress}%, #e8eaf2 0)` }}><div className="absolute inset-[7px] flex items-center justify-center rounded-full bg-white dark:bg-slate-900"><span className="text-xl font-bold">{progress}%</span></div></div><div><p className="text-xs text-slate-400">Sprint 12</p><p className="mt-1 text-sm font-semibold">Product polish</p><p className="mt-2 text-[11px] text-slate-400">{completed} of {tasks.length} tasks complete</p></div></div><div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-[11px] dark:border-slate-800"><span className="text-slate-400">Ends in</span><span className="font-semibold text-slate-700 dark:text-slate-200">5 days</span></div></div>
                   <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"><div className="mb-5 flex items-center justify-between"><h3 className="text-sm font-bold">Recent activity</h3><button className="text-xs font-semibold text-indigo-500">View all</button></div><div className="space-y-4">{(activity.length ? activity.slice(0, 4) : fallbackActivity).map((entry) => <ActivityItem key={entry.id} initials={initialsFromName(entry.user?.name)} color="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-200" time={formatRelativeTime(entry.created_at)}>{activityCopy(entry)}</ActivityItem>)}</div></div></aside>
               </section>
-            </> : activeNav === 'Projects' ? <ProjectsView projects={apiContext?.projects ?? []} activity={activity} onCreateProject={createProject} /> : activeNav === 'Team' ? <TeamView members={apiContext?.workspace?.members ?? []} onInvite={inviteMember} /> : <section className="flex min-h-[calc(100vh-180px)] items-center justify-center"><div className="max-w-md text-center"><div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300"><BarChart3 size={25} /></div><h2 className="text-xl font-bold">{activeNav}</h2><p className="mt-2 text-sm text-slate-400">This workspace view is ready for the next implementation stage.</p><button onClick={() => setActiveNav('Overview')} className="mt-5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white">Back to overview</button></div></section>}
+            </> : activeNav === 'Projects' ? <ProjectsView projects={apiContext?.projects ?? []} activity={activity} onCreateProject={createProject} onUpdateProject={updateProject} onDeleteProject={deleteProject} /> : activeNav === 'Team' ? <TeamView members={apiContext?.workspace?.members ?? []} onInvite={inviteMember} onRemoveMember={removeMember} /> : activeNav === 'Settings' ? <SettingsView dark={dark} onToggleDark={() => setDark((value) => !value)} session={session} workspace={apiContext?.workspace} onLogout={logout} /> : <section className="flex min-h-[calc(100vh-180px)] items-center justify-center"><div className="max-w-md text-center"><div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300"><BarChart3 size={25} /></div><h2 className="text-xl font-bold">{activeNav}</h2><p className="mt-2 text-sm text-slate-400">This workspace view is ready for the next implementation stage.</p><button onClick={() => setActiveNav('Overview')} className="mt-5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white">Back to overview</button></div></section>}
           </main>
         </div>
 
