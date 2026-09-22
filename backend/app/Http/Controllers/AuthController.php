@@ -17,17 +17,19 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:150', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'role' => ['nullable', 'in:owner,admin,member'],
             'workspace_name' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $user = User::create($data);
+        $role = $data['role'] ?? 'owner';
+        $user = User::create(collect($data)->only(['name', 'email', 'password'])->all());
         $workspaceName = $data['workspace_name'] ?? $user->name . "'s Workspace";
         $workspace = Workspace::create([
             'name' => $workspaceName,
             'slug' => Str::slug($workspaceName) . '-' . Str::lower(Str::random(5)),
             'owner_id' => $user->id,
         ]);
-        $workspace->members()->attach($user->id, ['role' => 'owner']);
+        $workspace->members()->attach($user->id, ['role' => $role]);
         $project = $workspace->projects()->create([
             'name' => 'Getting Started',
             'slug' => 'getting-started-' . Str::lower(Str::random(5)),
