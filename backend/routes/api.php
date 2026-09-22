@@ -17,7 +17,10 @@ Route::prefix('v1')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::apiResource('workspaces', WorkspaceController::class)->only(['index', 'show', 'store']);
         Route::post('/workspaces/{workspace}/members', [WorkspaceController::class, 'addMember']);
+        Route::patch('/workspaces/{workspace}/members/{member}', [WorkspaceController::class, 'updateMemberRole']);
         Route::delete('/workspaces/{workspace}/members/{member}', [WorkspaceController::class, 'removeMember']);
+        Route::patch('/workspaces/{workspace}', [WorkspaceController::class, 'update']);
+        Route::delete('/workspaces/{workspace}', [WorkspaceController::class, 'destroy']);
         Route::get('/workspaces/{workspace}/activity', [ActivityLogController::class, 'index']);
         Route::get('/workspaces/{workspace}/projects', [ProjectController::class, 'index']);
         Route::post('/workspaces/{workspace}/projects', [ProjectController::class, 'store']);
