@@ -41,6 +41,17 @@ class WorkspaceController extends Controller
         return response()->json($workspace->load('members'));
     }
 
+    public function removeMember(Request $request, Workspace $workspace, User $member): JsonResponse
+    {
+        $this->authorizeMember($request, $workspace);
+        abort_unless($workspace->owner_id === $request->user()->id, 403, 'Hanya owner yang dapat menghapus anggota.');
+        abort_if($member->id === $workspace->owner_id, 422, 'Owner tidak dapat dihapus dari workspace.');
+        abort_unless($workspace->members()->whereKey($member->id)->exists(), 404, 'Anggota tidak ditemukan di workspace ini.');
+        $workspace->members()->detach($member->id);
+        ActivityLog::create(['workspace_id' => $workspace->id, 'user_id' => $request->user()->id, 'action' => 'member.removed', 'metadata' => ['member_id' => $member->id]]);
+        return response()->json($workspace->load('members'));
+    }
+
     private function authorizeMember(Request $request, Workspace $workspace): void
     {
         abort_unless($workspace->members()->whereKey($request->user()->id)->exists(), 403, 'Kamu bukan anggota workspace ini.');
