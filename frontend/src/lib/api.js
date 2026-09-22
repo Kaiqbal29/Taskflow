@@ -29,4 +29,9 @@ export const api = {
   addComment: (token, workspaceId, projectId, taskId, data) => request(`/workspaces/${workspaceId}/projects/${projectId}/tasks/${taskId}/comments`, { method: 'POST', body: JSON.stringify(data) }, token),
   createTask: (token, workspaceId, projectId, data) => request(`/workspaces/${workspaceId}/projects/${projectId}/tasks`, { method: 'POST', body: JSON.stringify(data) }, token),
   updateTask: (token, workspaceId, projectId, taskId, data) => request(`/workspaces/${workspaceId}/projects/${projectId}/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
+  deleteTask: (token, workspaceId, projectId, taskId) => request(`/workspaces/${workspaceId}/projects/${projectId}/tasks/${taskId}`, { method: 'DELETE' }, token),
+  updateMemberRole: (token, workspaceId, memberId, role) => request(`/workspaces/${workspaceId}/members/${memberId}`, { method: 'PATCH', body: JSON.stringify({ role }) }, token),
+  updateWorkspace: (token, workspaceId, data) => request(`/workspaces/${workspaceId}`, { method: 'PATCH', body: JSON.stringify(data) }, token),
+  createWorkspace: (token, data) => request('/workspaces', { method: 'POST', body: JSON.stringify(data) }, token),
+  deleteWorkspace: (token, workspaceId) => request(`/workspaces/${workspaceId}`, { method: 'DELETE' }, token),
 }
