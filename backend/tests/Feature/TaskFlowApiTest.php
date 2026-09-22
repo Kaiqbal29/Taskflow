@@ -19,12 +19,12 @@ class TaskFlowApiTest extends TestCase
             'email' => 'register@example.com',
             'password' => 'password123',
             'password_confirmation' => 'password123',
-            'workspace_name' => 'Test Workspace',
+            'role' => 'owner',
         ]);
 
         $register->assertCreated()
             ->assertJsonPath('user.email', 'register@example.com')
-            ->assertJsonPath('workspace.name', 'Test Workspace')
+            ->assertJsonPath('workspace.name', "Test User's Workspace")
             ->assertJsonStructure(['token']);
 
         $this->postJson('/api/v1/auth/login', [
@@ -64,6 +64,39 @@ class TaskFlowApiTest extends TestCase
 
         $this->asApiUser($token)->deleteJson("/api/v1/workspaces/{$workspace->id}/members/{$owner->id}")
             ->assertUnprocessable();
+    }
+
+    public function test_owner_can_manage_roles_and_workspace(): void
+    {
+        [$owner, $workspace] = $this->workspaceWithOwner();
+        $member = User::factory()->create();
+        $workspace->members()->attach($member->id, ['role' => 'member']);
+        $token = $owner->createToken('test')->plainTextToken;
+
+        $this->asApiUser($token)->patchJson("/api/v1/workspaces/{$workspace->id}/members/{$member->id}", ['role' => 'admin'])
+            ->assertOk();
+        $this->assertDatabaseHas('workspace_user', ['workspace_id' => $workspace->id, 'user_id' => $member->id, 'role' => 'admin']);
+
+        $this->asApiUser($token)->patchJson("/api/v1/workspaces/{$workspace->id}", ['name' => 'Updated Workspace'])
+            ->assertOk()->assertJsonPath('name', 'Updated Workspace');
+
+        $this->asApiUser($token)->deleteJson("/api/v1/workspaces/{$workspace->id}")
+            ->assertOk()->assertJsonPath('message', 'Workspace dihapus.');
+        $this->assertDatabaseMissing('workspaces', ['id' => $workspace->id]);
+    }
+
+    public function test_owner_can_assign_task_to_workspace_member(): void
+    {
+        [$owner, $workspace] = $this->workspaceWithOwner();
+        $member = User::factory()->create();
+        $workspace->members()->attach($member->id, ['role' => 'member']);
+        $project = Project::create(['workspace_id' => $workspace->id, 'name' => 'Assigned Project', 'slug' => 'assigned-project']);
+        $token = $owner->createToken('test')->plainTextToken;
+
+        $this->asApiUser($token)->postJson("/api/v1/workspaces/{$workspace->id}/projects/{$project->id}/tasks", [
+            'title' => 'Assigned task', 'assignee_id' => $member->id,
+        ])->assertCreated()->assertJsonPath('assignee.id', $member->id);
+        $this->assertDatabaseHas('tasks', ['project_id' => $project->id, 'assignee_id' => $member->id]);
     }
 
     private function workspaceWithOwner(): array
