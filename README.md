@@ -53,14 +53,3 @@ Taskflow/
 └── README.md
 ```
 
-## Fitur utama
-
-- Workspace dan anggota tim
-- Project management
-- Kanban task dengan status, prioritas, assignee, dan deadline
-- Drag-and-drop status task
-- Komentar dan activity log
-- Dashboard statistik
-- Dark mode dan light mode
-- Responsive layout untuk desktop dan mobile
-- Login dan register berbasis Laravel Sanctum
