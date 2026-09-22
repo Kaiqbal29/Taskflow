@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\Project;
 use App\Models\Workspace;
 use Illuminate\Http\JsonResponse;
@@ -28,6 +29,47 @@ class ProjectController extends Controller
     {
         $this->authorizeProject($request, $workspace, $project);
         return response()->json($project->load(['tasks.assignee', 'tasks.comments.user']));
+    }
+
+    public function update(Request $request, Workspace $workspace, Project $project): JsonResponse
+    {
+        $this->authorizeProject($request, $workspace, $project);
+        $data = $request->validate([
+            'name' => ['sometimes', 'string', 'max:100'],
+            'description' => ['nullable', 'string'],
+            'color' => ['nullable', 'string', 'max:20'],
+            'status' => ['sometimes', 'in:active,archived'],
+            'start_date' => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date'],
+        ]);
+        if (array_key_exists('name', $data) && $data['name'] !== $project->name) {
+            $data['slug'] = Str::slug($data['name']) . '-' . Str::lower(Str::random(5));
+        }
+        $project->update($data);
+        ActivityLog::create([
+            'workspace_id' => $workspace->id,
+            'user_id' => $request->user()->id,
+            'subject_type' => Project::class,
+            'subject_id' => $project->id,
+            'action' => 'project.updated',
+            'metadata' => ['name' => $project->name],
+        ]);
+        return response()->json($project->fresh()->loadCount(['tasks', 'tasks as completed_tasks_count' => fn ($query) => $query->where('status', 'done')]));
+    }
+
+    public function destroy(Request $request, Workspace $workspace, Project $project): JsonResponse
+    {
+        $this->authorizeProject($request, $workspace, $project);
+        abort_if($workspace->projects()->count() <= 1, 422, 'Workspace harus memiliki minimal satu project.');
+        $projectId = $project->id;
+        $project->delete();
+        ActivityLog::create([
+            'workspace_id' => $workspace->id,
+            'user_id' => $request->user()->id,
+            'action' => 'project.deleted',
+            'metadata' => ['project_id' => $projectId],
+        ]);
+        return response()->json(['message' => 'Project dihapus.']);
     }
 
     private function authorizeMember(Request $request, Workspace $workspace): void
