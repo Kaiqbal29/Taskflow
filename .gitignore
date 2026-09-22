@@ -1,0 +1,31 @@
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+backend/vendor/
+
+# Build output
+dist/
+frontend/dist/
+
+# Laravel runtime
+backend/storage/*.key
+backend/storage/logs/*
+backend/storage/framework/cache/*
+backend/storage/framework/sessions/*
+backend/storage/framework/views/*
+backend/bootstrap/cache/*.php
+
+# Local preview logs
+*-api.out.log
+*-api.err.log
+frontend-vite.out.log
+frontend-vite.err.log
+
+# QA artifacts
+qa-*.mjs
+*.png
+*.jpg
