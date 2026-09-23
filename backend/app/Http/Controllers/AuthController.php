@@ -3,11 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
-use App\Models\Workspace;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -17,37 +15,13 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:150', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'role' => ['nullable', 'in:owner,admin,member'],
-            'workspace_name' => ['nullable', 'string', 'max:100'],
         ]);
 
-        $role = $data['role'] ?? 'owner';
         $user = User::create(collect($data)->only(['name', 'email', 'password'])->all());
-        $workspaceName = $data['workspace_name'] ?? $user->name . "'s Workspace";
-        $workspace = Workspace::create([
-            'name' => $workspaceName,
-            'slug' => Str::slug($workspaceName) . '-' . Str::lower(Str::random(5)),
-            'owner_id' => $user->id,
-        ]);
-        $workspace->members()->attach($user->id, ['role' => $role]);
-        $project = $workspace->projects()->create([
-            'name' => 'Getting Started',
-            'slug' => 'getting-started-' . Str::lower(Str::random(5)),
-            'description' => 'Your first TaskFlow project.',
-            'color' => '#6366f1',
-        ]);
-        $project->tasks()->create([
-            'creator_id' => $user->id,
-            'title' => 'Invite your first teammate',
-            'description' => 'Bring your team into the workspace and start moving work forward.',
-            'status' => 'backlog',
-            'priority' => 'medium',
-            'position' => 0,
-        ]);
 
         return response()->json([
             'user' => $user,
-            'workspace' => $workspace,
+            'workspaces' => [],
             'token' => $user->createToken('taskflow-web')->plainTextToken,
         ], 201);
     }
