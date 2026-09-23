@@ -36,16 +36,16 @@ import {
 } from 'lucide-react'
 
 const initialTasks = [
-  { id: 1, title: 'Design onboarding flow', project: 'Website Redesign', status: 'in-progress', priority: 'High', due: 'Today', assignee: 'AF', tone: 'indigo', comments: 4 },
-  { id: 2, title: 'Update pricing page copy', project: 'Website Redesign', status: 'review', priority: 'Medium', due: 'Sep 24', assignee: 'NS', tone: 'rose', comments: 2 },
-  { id: 3, title: 'Set up analytics events', project: 'Mobile App', status: 'backlog', priority: 'Low', due: 'Sep 26', assignee: 'MA', tone: 'amber', comments: 0 },
-  { id: 4, title: 'Create empty states', project: 'Design System', status: 'done', priority: 'Medium', due: 'Sep 19', assignee: 'AF', tone: 'indigo', comments: 3 },
-  { id: 5, title: 'Review authentication API', project: 'Mobile App', status: 'in-progress', priority: 'High', due: 'Sep 25', assignee: 'RD', tone: 'emerald', comments: 5 },
-  { id: 6, title: 'Prepare launch checklist', project: 'Website Redesign', status: 'backlog', priority: 'Medium', due: 'Sep 28', assignee: 'NS', tone: 'rose', comments: 1 },
-  { id: 7, title: 'QA responsive layouts', project: 'Design System', status: 'review', priority: 'Low', due: 'Sep 23', assignee: 'MA', tone: 'amber', comments: 2 },
-  { id: 8, title: 'Refine hero messaging', project: 'Website Redesign', status: 'done', priority: 'High', due: 'Sep 19', assignee: 'NS', tone: 'rose', comments: 1 },
-  { id: 9, title: 'Prototype workspace switcher', project: 'Mobile App', status: 'in-progress', priority: 'High', due: 'Sep 26', assignee: 'AF', tone: 'indigo', comments: 2 },
-  { id: 10, title: 'Document color tokens', project: 'Design System', status: 'review', priority: 'Medium', due: 'Sep 24', assignee: 'RD', tone: 'emerald', comments: 1 },
+  { id: 1, title: 'Design onboarding flow', project: 'Website Redesign', status: 'in-progress', priority: 'High', due: 'Today', dueDate: '2026-09-23', assignee: 'AF', tone: 'indigo', comments: 4 },
+  { id: 2, title: 'Update pricing page copy', project: 'Website Redesign', status: 'review', priority: 'Medium', due: 'Sep 24', dueDate: '2026-09-24', assignee: 'NS', tone: 'rose', comments: 2 },
+  { id: 3, title: 'Set up analytics events', project: 'Mobile App', status: 'backlog', priority: 'Low', due: 'Sep 26', dueDate: '2026-09-26', assignee: 'MA', tone: 'amber', comments: 0 },
+  { id: 4, title: 'Create empty states', project: 'Design System', status: 'done', priority: 'Medium', due: 'Sep 19', dueDate: '2026-09-19', assignee: 'AF', tone: 'indigo', comments: 3 },
+  { id: 5, title: 'Review authentication API', project: 'Mobile App', status: 'in-progress', priority: 'High', due: 'Sep 25', dueDate: '2026-09-25', assignee: 'RD', tone: 'emerald', comments: 5 },
+  { id: 6, title: 'Prepare launch checklist', project: 'Website Redesign', status: 'backlog', priority: 'Medium', due: 'Sep 28', dueDate: '2026-09-28', assignee: 'NS', tone: 'rose', comments: 1 },
+  { id: 7, title: 'QA responsive layouts', project: 'Design System', status: 'review', priority: 'Low', due: 'Sep 23', dueDate: '2026-09-23', assignee: 'MA', tone: 'amber', comments: 2 },
+  { id: 8, title: 'Refine hero messaging', project: 'Website Redesign', status: 'done', priority: 'High', due: 'Sep 19', dueDate: '2026-09-19', assignee: 'NS', tone: 'rose', comments: 1 },
+  { id: 9, title: 'Prototype workspace switcher', project: 'Mobile App', status: 'in-progress', priority: 'High', due: 'Sep 26', dueDate: '2026-09-26', assignee: 'AF', tone: 'indigo', comments: 2 },
+  { id: 10, title: 'Document color tokens', project: 'Design System', status: 'review', priority: 'Medium', due: 'Sep 24', dueDate: '2026-09-24', assignee: 'RD', tone: 'emerald', comments: 1 },
 ]
 
 const columns = [
@@ -53,6 +53,14 @@ const columns = [
   { id: 'in-progress', label: 'In progress', color: 'bg-indigo-500', soft: 'bg-indigo-50 dark:bg-indigo-950/30' },
   { id: 'review', label: 'In review', color: 'bg-amber-500', soft: 'bg-amber-50 dark:bg-amber-950/25' },
   { id: 'done', label: 'Done', color: 'bg-emerald-500', soft: 'bg-emerald-50 dark:bg-emerald-950/25' },
+]
+
+const dateFilterOptions = [
+  { value: 'this-week', label: 'This week' },
+  { value: 'today', label: 'Today' },
+  { value: 'upcoming', label: 'Upcoming' },
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'all', label: 'All time' },
 ]
 
 const navItems = [
@@ -105,7 +113,7 @@ function formatTaskDueDate(value) {
 }
 
 function mapApiTask(task, projectName) {
-  const rawDueDate = task.due_date ?? ''
+  const rawDueDate = task.due_date ?? task.dueDate ?? ''
   const dueDate = rawDueDate ? String(rawDueDate).slice(0, 10) : ''
   return {
     id: task.id,
@@ -125,6 +133,26 @@ function mapApiTask(task, projectName) {
 
 function formatDashboardDate(date = new Date()) {
   return new Intl.DateTimeFormat('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(date)
+}
+
+function matchesDateFilter(task, filter, now = new Date()) {
+  if (filter === 'all') return true
+  if (!task.dueDate) return false
+  const dueDate = new Date(`${task.dueDate}T00:00:00`)
+  if (Number.isNaN(dueDate.getTime())) return false
+
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  if (filter === 'today') return dueDate.getTime() === today.getTime()
+  if (filter === 'upcoming') return dueDate > today
+  if (filter === 'overdue') return dueDate < today && task.status !== 'done'
+
+  const dayOfWeek = today.getDay()
+  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  const weekStart = new Date(today)
+  weekStart.setDate(today.getDate() - daysFromMonday)
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekStart.getDate() + 6)
+  return dueDate >= weekStart && dueDate <= weekEnd
 }
 
 function formatRelativeTime(value) {
@@ -228,12 +256,14 @@ function App() {
   const [commentText, setCommentText] = useState('')
   const [activeNav, setActiveNav] = useState('Overview')
   const [selectedProject, setSelectedProject] = useState('All projects')
+  const [dateFilter, setDateFilter] = useState('this-week')
   const [tasks, setTasks] = useState(initialTasks)
   const [draggedId, setDraggedId] = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [selectedTask, setSelectedTask] = useState(null)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [workspaceMenuOpen, setWorkspaceMenuOpen] = useState(false)
+  const [workspaceSetupOpen, setWorkspaceSetupOpen] = useState(false)
   const [newTask, setNewTask] = useState({ title: '', project: 'Website Redesign', priority: 'Medium', assignee: '', assigneeId: '', due: '2026-09-30' })
 
   useEffect(() => {
@@ -300,11 +330,13 @@ function App() {
       .catch(() => setComments([]))
   }, [selectedTask, session, apiContext])
 
-  const visibleTasks = useMemo(() => selectedProject === 'All projects' ? tasks : tasks.filter((task) => task.project === selectedProject), [selectedProject, tasks])
-  const completed = tasks.filter((task) => task.status === 'done').length
-  const overdue = tasks.filter((task) => task.dueDate && new Date(`${task.dueDate}T23:59:59`) < new Date() && task.status !== 'done').length
+  const filteredTasks = useMemo(() => tasks.filter((task) => matchesDateFilter(task, dateFilter)), [dateFilter, tasks])
+  const visibleTasks = useMemo(() => selectedProject === 'All projects' ? filteredTasks : filteredTasks.filter((task) => task.project === selectedProject), [filteredTasks, selectedProject])
+  const completed = filteredTasks.filter((task) => task.status === 'done').length
+  const overdue = filteredTasks.filter((task) => task.dueDate && new Date(`${task.dueDate}T23:59:59`) < new Date() && task.status !== 'done').length
   const memberCount = apiContext?.workspace?.members?.length ?? 4
-  const progress = tasks.length ? Math.round((completed / tasks.length) * 100) : 0
+  const progress = filteredTasks.length ? Math.round((completed / filteredTasks.length) * 100) : 0
+  const activeDateFilter = dateFilterOptions.find((option) => option.value === dateFilter) ?? dateFilterOptions[0]
   const projectOptions = apiContext?.projects?.length ? [{ name: 'All projects', count: tasks.length, color: 'bg-indigo-500' }, ...apiContext.projects.map((project) => ({ name: project.name, count: project.tasks_count ?? 0, color: 'bg-violet-500' }))] : projects
   const workspaceOptions = apiContext?.workspaces?.length ? apiContext.workspaces : apiContext?.workspace ? [apiContext.workspace] : []
   const memberOptions = apiContext?.workspace?.members?.map((member) => ({ id: member.id, name: member.name, initials: initialsFromName(member.name) })) ?? people.map((person) => ({ id: person.initials, name: person.name, initials: person.initials }))
@@ -321,7 +353,7 @@ function App() {
   if (!authChecked) return <div className="flex min-h-screen items-center justify-center bg-[#f7f8fc] text-sm text-slate-400 dark:bg-[#0c1020]">Loading TaskFlow...</div>
   if (!session) return <AuthScreen onAuthenticated={(payload) => { setWorkspaceLoading(Boolean(payload.token)); setSession(payload) }} />
   if (!session.demo && workspaceLoading) return <div className="flex min-h-screen items-center justify-center bg-[#f7f8fc] text-sm text-slate-400 dark:bg-[#0c1020]">Loading your workspace...</div>
-  if (!session.demo && !apiContext?.workspace) return <WorkspaceOnboarding user={session.user} onCreateWorkspace={async (name) => { await api.createWorkspace(session.token, { name }); window.location.reload() }} onJoinWorkspace={async (joinCode) => { await api.joinWorkspace(session.token, joinCode); window.location.reload() }} onLogout={logout} />
+  if (workspaceSetupOpen || (!session.demo && !apiContext?.workspace)) return <WorkspaceOnboarding user={session.user} onCreateWorkspace={createWorkspace} onJoinWorkspace={joinWorkspace} onLogout={logout} />
 
   async function moveTask(status) {
     if (draggedId === null) return
@@ -348,7 +380,7 @@ function App() {
       })
       setTasks((current) => [...current, mapApiTask(created, taskProject.name)])
     } else {
-      setTasks((current) => [...current, { id: Date.now(), ...newTask, status: 'backlog', comments: 0, tone: 'indigo' }])
+      setTasks((current) => [...current, { id: Date.now(), ...newTask, dueDate: newTask.due, status: 'backlog', comments: 0, tone: 'indigo' }])
     }
     const firstMember = apiContext?.workspace?.members?.find((member) => member.id !== apiContext.workspace.owner_id) ?? apiContext?.workspace?.members?.[0]
     setNewTask({ title: '', project: taskProject?.name ?? 'Website Redesign', priority: 'Medium', assignee: firstMember ? initialsFromName(firstMember.name) : '', assigneeId: firstMember?.id ?? '', due: '2026-09-30' })
@@ -426,15 +458,26 @@ function App() {
     setApiContext((current) => ({ ...current, workspace: updatedWorkspace }))
   }
 
+  function openWorkspaceSetup() {
+    setWorkspaceSetupOpen(true)
+  }
+
   async function createWorkspace(name) {
     if (!name.trim()) return
     if (!session?.token) {
-      const created = { id: `demo-workspace-${Date.now()}`, name, projects_count: 0, members: apiContext?.workspace?.members ?? [] }
-      setApiContext((current) => ({ ...current, workspaces: [...(current.workspaces ?? []), created] }))
+      const created = { id: `demo-workspace-${Date.now()}`, name, owner_id: session.user?.id, projects_count: 0, members: apiContext?.workspace?.members ?? [] }
+      setApiContext((current) => ({ ...current, workspaces: [...(current?.workspaces ?? []), created], workspace: { ...created, members: created.members }, projects: [], activeProject: null }))
+      setWorkspaceSetupOpen(false)
       return
     }
-    const created = await api.createWorkspace(session.token, { name })
-    setApiContext((current) => ({ ...current, workspaces: [...(current.workspaces ?? []), { ...created, projects_count: 0 }] }))
+    await api.createWorkspace(session.token, { name })
+    window.location.reload()
+  }
+
+  async function joinWorkspace(joinCode) {
+    if (!session?.token) throw new Error('Join workspace tersedia setelah login ke akun TaskFlow.')
+    await api.joinWorkspace(session.token, joinCode)
+    window.location.reload()
   }
 
   async function selectWorkspace(workspaceId) {
@@ -472,8 +515,14 @@ function App() {
     if (!apiContext?.workspace || !window.confirm(`Hapus workspace "${apiContext.workspace.name}" beserta semua project dan task di dalamnya?`)) return
     try {
       if (session?.token) await api.deleteWorkspace(session.token, apiContext.workspace.id)
-      localStorage.removeItem('taskflow_token')
-      window.location.reload()
+      const remainingWorkspaces = (apiContext.workspaces ?? []).filter((item) => item.id !== apiContext.workspace.id)
+      if (!remainingWorkspaces.length) {
+        setApiContext({ workspaces: [], workspace: null, projects: [], activeProject: null })
+        setWorkspaceSetupOpen(true)
+        return
+      }
+      await selectWorkspace(remainingWorkspaces[0].id)
+      setApiContext((current) => ({ ...current, workspaces: remainingWorkspaces }))
     } catch (error) { window.alert(error.message) }
   }
 
@@ -543,19 +592,19 @@ function App() {
 
           <main className="mx-auto max-w-[1600px] p-5 sm:p-8">
             {activeNav === 'Overview' ? <>
-              <section className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><p className="mb-2 flex items-center gap-2 text-xs font-medium text-indigo-500"><Zap size={13} /> {formatDashboardDate()}</p><h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Good afternoon, {session?.user?.name ?? 'Kaiqbal'} <span className="inline-block origin-bottom-right animate-[wiggle_1.5s_ease-in-out_infinite]">👋</span></h2><p className="mt-2 text-sm text-slate-400">Here&apos;s what&apos;s happening across your workspace today.</p></div><button className="flex w-fit items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"><CalendarDays size={15} /> This week <ChevronDown size={14} /></button></section>
+              <section className="mb-8 flex flex-col justify-between gap-5 sm:flex-row sm:items-end"><div><p className="mb-2 flex items-center gap-2 text-xs font-medium text-indigo-500"><Zap size={13} /> {formatDashboardDate()}</p><h2 className="text-2xl font-bold tracking-tight sm:text-3xl">Good afternoon, {session?.user?.name ?? 'Kaiqbal'} <span className="inline-block origin-bottom-right animate-[wiggle_1.5s_ease-in-out_infinite]">👋</span></h2><p className="mt-2 text-sm text-slate-400">Here&apos;s what&apos;s happening across your workspace today.</p></div><div className="relative w-fit"><CalendarDays size={15} className="pointer-events-none absolute left-3 top-1/2 z-10 -translate-y-1/2 text-slate-500" /><select aria-label="Filter tasks by due date" value={dateFilter} onChange={(event) => setDateFilter(event.target.value)} className="w-full appearance-none rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-9 text-xs font-semibold text-slate-600 shadow-sm outline-none transition focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:focus:ring-indigo-950">{dateFilterOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><ChevronDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-500" /></div></section>
 
-              <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><StatCard icon={Target} label="Total tasks" value={tasks.length.toString().padStart(2, '0')} change="Live" positive tint="bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300" /><StatCard icon={CheckCircle2} label="Completed tasks" value={completed.toString().padStart(2, '0')} change={tasks.length ? `${Math.round((completed / tasks.length) * 100)}%` : '0%'} positive tint="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300" /><StatCard icon={Clock3} label="Overdue tasks" value={overdue.toString().padStart(2, '0')} change={overdue ? 'Needs focus' : 'On track'} positive={!overdue} tint="bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300" /><StatCard icon={Users} label="Active members" value={memberCount.toString().padStart(2, '0')} change="Workspace" positive tint="bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300" /></section>
+              <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><StatCard icon={Target} label="Total tasks" value={filteredTasks.length.toString().padStart(2, '0')} change={activeDateFilter.label} positive tint="bg-indigo-50 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300" /><StatCard icon={CheckCircle2} label="Completed tasks" value={completed.toString().padStart(2, '0')} change={filteredTasks.length ? `${Math.round((completed / filteredTasks.length) * 100)}%` : '0%'} positive tint="bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-300" /><StatCard icon={Clock3} label="Overdue tasks" value={overdue.toString().padStart(2, '0')} change={overdue ? 'Needs focus' : 'On track'} positive={!overdue} tint="bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-300" /><StatCard icon={Users} label="Active members" value={memberCount.toString().padStart(2, '0')} change="Workspace" positive tint="bg-violet-50 text-violet-600 dark:bg-violet-950/50 dark:text-violet-300" /></section>
 
               <section className="mt-8 grid gap-6 xl:grid-cols-[minmax(0,1fr)_310px]">
                 <div className="min-w-0"><div className="mb-4 flex flex-col justify-between gap-3 sm:flex-row sm:items-center"><div><h3 className="text-base font-bold">Task overview</h3><p className="mt-1 text-xs text-slate-400">Drag and drop tasks to update their status.</p></div><div className="flex items-center gap-2"><button onClick={() => setSelectedProject('All projects')} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"><span className="h-2 w-2 rounded-full bg-indigo-500" />{selectedProject}<ChevronDown size={14} /></button><button className="rounded-lg border border-slate-200 bg-white p-2 text-slate-400 dark:border-slate-700 dark:bg-slate-900"><MoreHorizontal size={16} /></button></div></div>
                   <div className="grid gap-3 overflow-x-auto pb-2 md:grid-cols-2 2xl:grid-cols-4">{columns.map((column) => <div key={column.id} onDragOver={(event) => event.preventDefault()} onDrop={() => moveTask(column.id)} className={`min-h-[325px] min-w-[255px] rounded-2xl p-3 ${column.soft}`}><div className="mb-3 flex items-center justify-between px-1"><div className="flex items-center gap-2"><span className={`h-2 w-2 rounded-full ${column.color}`} /><span className="text-xs font-bold text-slate-600 dark:text-slate-300">{column.label}</span><span className="text-[10px] font-semibold text-slate-400">{visibleTasks.filter((task) => task.status === column.id).length}</span></div><button onClick={() => setModalOpen(true)} className="rounded-md p-1 text-slate-400 hover:bg-white/70 dark:hover:bg-slate-800/60"><Plus size={15} /></button></div><div className="space-y-2.5">{visibleTasks.filter((task) => task.status === column.id).map((task) => <TaskCard key={task.id} task={task} onDragStart={setDraggedId} onOpen={setSelectedTask} />)}</div></div>)}</div>
                 </div>
 
-                <aside className="space-y-6"><div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"><div className="mb-5 flex items-center justify-between"><h3 className="text-sm font-bold">Sprint progress</h3><button className="text-slate-400"><MoreHorizontal size={17} /></button></div><div className="flex items-center gap-5"><div className="relative h-24 w-24 shrink-0 rounded-full" style={{ background: `conic-gradient(#6366f1 ${progress}%, #e8eaf2 0)` }}><div className="absolute inset-[7px] flex items-center justify-center rounded-full bg-white dark:bg-slate-900"><span className="text-xl font-bold">{progress}%</span></div></div><div><p className="text-xs text-slate-400">Sprint 12</p><p className="mt-1 text-sm font-semibold">Product polish</p><p className="mt-2 text-[11px] text-slate-400">{completed} of {tasks.length} tasks complete</p></div></div><div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-[11px] dark:border-slate-800"><span className="text-slate-400">Ends in</span><span className="font-semibold text-slate-700 dark:text-slate-200">5 days</span></div></div>
+                <aside className="space-y-6"><div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"><div className="mb-5 flex items-center justify-between"><h3 className="text-sm font-bold">Sprint progress</h3><button className="text-slate-400"><MoreHorizontal size={17} /></button></div><div className="flex items-center gap-5"><div className="relative h-24 w-24 shrink-0 rounded-full" style={{ background: `conic-gradient(#6366f1 ${progress}%, #e8eaf2 0)` }}><div className="absolute inset-[7px] flex items-center justify-center rounded-full bg-white dark:bg-slate-900"><span className="text-xl font-bold">{progress}%</span></div></div><div><p className="text-xs text-slate-400">Sprint 12</p><p className="mt-1 text-sm font-semibold">Product polish</p><p className="mt-2 text-[11px] text-slate-400">{completed} of {filteredTasks.length} tasks complete</p></div></div><div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4 text-[11px] dark:border-slate-800"><span className="text-slate-400">Ends in</span><span className="font-semibold text-slate-700 dark:text-slate-200">5 days</span></div></div>
                   <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-900"><div className="mb-5 flex items-center justify-between"><h3 className="text-sm font-bold">Recent activity</h3><button className="text-xs font-semibold text-indigo-500">View all</button></div><div className="space-y-4">{(activity.length ? activity.slice(0, 4) : fallbackActivity).map((entry) => <ActivityItem key={entry.id} initials={initialsFromName(entry.user?.name)} color="bg-indigo-100 text-indigo-700 dark:bg-indigo-900/60 dark:text-indigo-200" time={formatRelativeTime(entry.created_at)}>{activityCopy(entry)}</ActivityItem>)}</div></div></aside>
               </section>
-            </> : activeNav === 'Projects' ? <ProjectsView projects={apiContext?.projects ?? []} activity={activity} onCreateProject={createProject} onUpdateProject={updateProject} onDeleteProject={deleteProject} /> : activeNav === 'Team' ? <TeamView members={apiContext?.workspace?.members ?? []} onInvite={inviteMember} onRemoveMember={removeMember} /> : activeNav === 'Settings' ? <SettingsView dark={dark} onToggleDark={() => setDark((value) => !value)} session={session} workspace={apiContext?.workspace} workspaces={apiContext?.workspaces ?? []} onCreateWorkspace={createWorkspace} onSelectWorkspace={selectWorkspace} onUpdateWorkspace={updateWorkspace} onDeleteWorkspace={deleteWorkspace} onLogout={logout} /> : <section className="flex min-h-[calc(100vh-180px)] items-center justify-center"><div className="max-w-md text-center"><div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300"><BarChart3 size={25} /></div><h2 className="text-xl font-bold">{activeNav}</h2><p className="mt-2 text-sm text-slate-400">This workspace view is ready for the next implementation stage.</p><button onClick={() => setActiveNav('Overview')} className="mt-5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white">Back to overview</button></div></section>}
+            </> : activeNav === 'Projects' ? <ProjectsView projects={apiContext?.projects ?? []} activity={activity} onCreateProject={createProject} onUpdateProject={updateProject} onDeleteProject={deleteProject} /> : activeNav === 'Team' ? <TeamView members={apiContext?.workspace?.members ?? []} onInvite={inviteMember} onRemoveMember={removeMember} /> : activeNav === 'Settings' ? <SettingsView dark={dark} onToggleDark={() => setDark((value) => !value)} session={session} workspace={apiContext?.workspace} workspaces={apiContext?.workspaces ?? []} onOpenWorkspaceSetup={openWorkspaceSetup} onSelectWorkspace={selectWorkspace} onUpdateWorkspace={updateWorkspace} onDeleteWorkspace={deleteWorkspace} onLogout={logout} /> : <section className="flex min-h-[calc(100vh-180px)] items-center justify-center"><div className="max-w-md text-center"><div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-300"><BarChart3 size={25} /></div><h2 className="text-xl font-bold">{activeNav}</h2><p className="mt-2 text-sm text-slate-400">This workspace view is ready for the next implementation stage.</p><button onClick={() => setActiveNav('Overview')} className="mt-5 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-semibold text-white">Back to overview</button></div></section>}
           </main>
         </div>
 
