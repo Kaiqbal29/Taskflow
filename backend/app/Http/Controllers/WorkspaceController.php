@@ -25,19 +25,65 @@ class WorkspaceController extends Controller
     public function store(Request $request): JsonResponse
     {
         $data = $request->validate(['name' => ['required', 'string', 'max:100']]);
-        $workspace = Workspace::create(['name' => $data['name'], 'slug' => Str::slug($data['name']) . '-' . Str::lower(Str::random(5)), 'owner_id' => $request->user()->id]);
+        $workspace = Workspace::create([
+            'name' => $data['name'],
+            'slug' => Str::slug($data['name']) . '-' . Str::lower(Str::random(5)),
+            'join_code' => $this->newJoinCode(),
+            'owner_id' => $request->user()->id,
+        ]);
         $workspace->members()->attach($request->user()->id, ['role' => 'owner']);
+        $project = $workspace->projects()->create([
+            'name' => 'Getting Started',
+            'slug' => 'getting-started-' . Str::lower(Str::random(5)),
+            'description' => 'Your first TaskFlow project.',
+            'color' => '#6366f1',
+        ]);
+        $project->tasks()->create([
+            'creator_id' => $request->user()->id,
+            'title' => 'Invite your first teammate',
+            'description' => 'Share your workspace code and start moving work forward together.',
+            'status' => 'backlog',
+            'priority' => 'medium',
+            'position' => 0,
+        ]);
         return response()->json($workspace, 201);
+    }
+
+    public function join(Request $request): JsonResponse
+    {
+        $data = $request->validate(['join_code' => ['required', 'string', 'size:8']]);
+        $workspace = Workspace::whereRaw('LOWER(join_code) = ?', [strtolower($data['join_code'])])->first();
+        abort_unless($workspace, 422, 'Kode workspace tidak ditemukan.');
+        $alreadyMember = $workspace->members()->whereKey($request->user()->id)->exists();
+        if (!$alreadyMember) {
+            $workspace->members()->attach($request->user()->id, ['role' => 'member']);
+            ActivityLog::create([
+                'workspace_id' => $workspace->id,
+                'user_id' => $request->user()->id,
+                'action' => 'member.joined',
+                'metadata' => ['role' => 'member'],
+            ]);
+        }
+        return response()->json($workspace->fresh()->load('members'));
+    }
+
+    private function newJoinCode(): string
+    {
+        do {
+            $code = Str::upper(Str::random(8));
+        } while (Workspace::where('join_code', $code)->exists());
+
+        return $code;
     }
 
     public function addMember(Request $request, Workspace $workspace): JsonResponse
     {
         $this->authorizeMember($request, $workspace);
         abort_unless($workspace->owner_id === $request->user()->id, 403, 'Hanya owner yang dapat menambah anggota.');
-        $data = $request->validate(['email' => ['required', 'email', 'exists:users,email'], 'role' => ['nullable', 'in:admin,member']]);
+        $data = $request->validate(['email' => ['required', 'email', 'exists:users,email']]);
         $member = User::where('email', $data['email'])->firstOrFail();
-        $workspace->members()->syncWithoutDetaching([$member->id => ['role' => $data['role'] ?? 'member']]);
-        ActivityLog::create(['workspace_id' => $workspace->id, 'user_id' => $request->user()->id, 'action' => 'member.added', 'metadata' => ['member_id' => $member->id, 'role' => $data['role'] ?? 'member']]);
+        $workspace->members()->syncWithoutDetaching([$member->id => ['role' => 'member']]);
+        ActivityLog::create(['workspace_id' => $workspace->id, 'user_id' => $request->user()->id, 'action' => 'member.added', 'metadata' => ['member_id' => $member->id, 'role' => 'member']]);
         return response()->json($workspace->load('members'));
     }
 
