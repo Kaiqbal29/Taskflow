@@ -16,8 +16,8 @@ Route::prefix('v1')->group(function () {
         Route::get('/auth/me', [AuthController::class, 'me']);
         Route::post('/auth/logout', [AuthController::class, 'logout']);
         Route::apiResource('workspaces', WorkspaceController::class)->only(['index', 'show', 'store']);
+        Route::post('/workspaces/join', [WorkspaceController::class, 'join']);
         Route::post('/workspaces/{workspace}/members', [WorkspaceController::class, 'addMember']);
-        Route::patch('/workspaces/{workspace}/members/{member}', [WorkspaceController::class, 'updateMemberRole']);
         Route::delete('/workspaces/{workspace}/members/{member}', [WorkspaceController::class, 'removeMember']);
         Route::patch('/workspaces/{workspace}', [WorkspaceController::class, 'update']);
         Route::delete('/workspaces/{workspace}', [WorkspaceController::class, 'destroy']);
