@@ -9,7 +9,7 @@ class Workspace extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'slug', 'owner_id'];
+    protected $fillable = ['name', 'slug', 'owner_id', 'join_code'];
 
     public function owner() { return $this->belongsTo(User::class, 'owner_id'); }
     public function members() { return $this->belongsToMany(User::class, 'workspace_user')->withPivot('role')->withTimestamps(); }
